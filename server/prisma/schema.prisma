@@ -1,5 +1,6 @@
-// Prisma schema for UNI-NEST.
-// Full data models will be added in Phase 2 (Database Design).
+// Prisma schema for UNI-NEST (Phase 2 - Database Design).
+// Defines all core entities: users, universities, companies, properties,
+// reservations, wishlists, reviews, messaging, and notifications.
 
 generator client {
   provider = "prisma-client-js"
@@ -8,4 +9,292 @@ generator client {
 datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
+}
+
+// ---------- Enums ----------
+
+// The role decides which portal a user can access.
+enum Role {
+  STUDENT
+  LANDLORD
+  UNIVERSITY
+  COMPANY
+  ADMIN
+}
+
+enum CompanyType {
+  REAL_ESTATE
+  PROPERTY_MANAGEMENT
+}
+
+enum PropertyType {
+  BEDSITTER
+  SINGLE_ROOM
+  ONE_BEDROOM
+  TWO_BEDROOM
+  HOSTEL
+  SHARED_APARTMENT
+}
+
+// Admin approval state for a listing.
+enum PropertyStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// A reservation is either booking the accommodation itself
+// or booking an on-site viewing appointment.
+enum ReservationType {
+  STAY
+  VIEWING
+}
+
+enum ReservationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  RESCHEDULED
+  CANCELLED
+  COMPLETED
+}
+
+// ---------- Users ----------
+
+model User {
+  id            Int      @id @default(autoincrement())
+  name          String
+  email         String   @unique
+  // Hashed password. Null for users who sign in with Google only.
+  password      String?
+  phone         String?
+  role          Role     @default(STUDENT)
+  avatarUrl     String?
+  emailVerified Boolean  @default(false)
+  googleId      String?  @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // A university/company staff account is linked to its organisation.
+  universityId Int?
+  university   University? @relation(fields: [universityId], references: [id])
+  companyId    Int?
+  company      Company?    @relation(fields: [companyId], references: [id])
+
+  properties    Property[]                @relation("PropertyOwner")
+  reservations  Reservation[]
+  wishlist      WishlistItem[]
+  reviews       Review[]
+  messages      Message[]
+  conversations ConversationParticipant[]
+  notifications Notification[]
+
+  @@index([role])
+}
+
+// ---------- Organisations ----------
+
+model University {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  email     String   @unique
+  city      String
+  address   String?
+  website   String?
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  staff           User[]
+  recommendations UniversityRecommendation[]
+
+  @@index([city])
+}
+
+model Company {
+  id                 Int         @id @default(autoincrement())
+  name               String
+  // Used to verify the company (Phase 9).
+  registrationNumber String      @unique
+  type               CompanyType
+  email              String      @unique
+  phone              String?
+  verified           Boolean     @default(false)
+  createdAt          DateTime    @default(now())
+
+  staff      User[]
+  properties Property[]
+}
+
+// ---------- Properties ----------
+
+model Property {
+  id          Int            @id @default(autoincrement())
+  title       String
+  description String         @db.Text
+  type        PropertyType
+  // Monthly rent. Stored as a decimal to avoid floating point errors.
+  price       Decimal        @db.Decimal(10, 2)
+  city        String
+  address     String
+  latitude    Float?
+  longitude   Float?
+  bedrooms    Int            @default(1)
+  bathrooms   Int            @default(1)
+  available   Boolean        @default(true)
+  status      PropertyStatus @default(PENDING)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  ownerId   Int
+  owner     User     @relation("PropertyOwner", fields: [ownerId], references: [id])
+  // Set when the property is managed by a company instead of an individual.
+  companyId Int?
+  company   Company? @relation(fields: [companyId], references: [id])
+
+  images          PropertyImage[]
+  amenities       PropertyAmenity[]
+  reservations    Reservation[]
+  wishlistedBy    WishlistItem[]
+  reviews         Review[]
+  recommendations UniversityRecommendation[]
+
+  @@index([city])
+  @@index([price])
+  @@index([status])
+  @@index([type])
+}
+
+model PropertyImage {
+  id         Int      @id @default(autoincrement())
+  url        String
+  // Marks the image shown first on listing cards.
+  isCover    Boolean  @default(false)
+  propertyId Int
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+}
+
+model Amenity {
+  id         Int               @id @default(autoincrement())
+  name       String            @unique
+  properties PropertyAmenity[]
+}
+
+// Join table: a property can have many amenities and vice versa.
+model PropertyAmenity {
+  propertyId Int
+  amenityId  Int
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  amenity    Amenity  @relation(fields: [amenityId], references: [id], onDelete: Cascade)
+
+  @@id([propertyId, amenityId])
+}
+
+// Universities can recommend approved accommodation to their students.
+model UniversityRecommendation {
+  universityId Int
+  propertyId   Int
+  createdAt    DateTime   @default(now())
+  university   University @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  property     Property   @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@id([universityId, propertyId])
+}
+
+// ---------- Reservations ----------
+
+model Reservation {
+  id        Int               @id @default(autoincrement())
+  type      ReservationType
+  status    ReservationStatus @default(PENDING)
+  // For STAY: intended move-in date. For VIEWING: appointment date.
+  startDate DateTime
+  // Only used for STAY reservations.
+  endDate   DateTime?
+  // Optional note from the student to the landlord.
+  message   String?           @db.Text
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  propertyId Int
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  studentId  Int
+  student    User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([startDate])
+}
+
+// ---------- Wishlist & Reviews ----------
+
+model WishlistItem {
+  userId     Int
+  propertyId Int
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@id([userId, propertyId])
+}
+
+model Review {
+  id        Int      @id @default(autoincrement())
+  // 1 to 5 stars.
+  rating    Int
+  comment   String?  @db.Text
+  createdAt DateTime @default(now())
+
+  propertyId Int
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  studentId  Int
+  student    User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  // A student can only review a property once.
+  @@unique([studentId, propertyId])
+}
+
+// ---------- Messaging & Notifications ----------
+
+model Conversation {
+  id           Int                       @id @default(autoincrement())
+  createdAt    DateTime                  @default(now())
+  participants ConversationParticipant[]
+  messages     Message[]
+}
+
+// Join table linking users to the conversations they belong to.
+model ConversationParticipant {
+  conversationId Int
+  userId         Int
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, userId])
+}
+
+model Message {
+  id        Int       @id @default(autoincrement())
+  content   String    @db.Text
+  // Set when the receiving side has read the message.
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  conversationId Int
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       Int
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  title     String
+  body      String   @db.Text
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
 }

@@ -76,7 +76,7 @@ cd client && npm run dev    # Frontend on http://localhost:3000
 The project is built in 15 incremental phases. See [docs/ROADMAP.md](docs/ROADMAP.md).
 
 - [x] Phase 1 — Project initialization
-- [ ] Phase 2 — Database design
+- [x] Phase 2 — Database design
 - [ ] Phase 3 — Authentication system
 - [ ] Phase 4 — Client portal
 - [ ] Phase 5 — Property search
