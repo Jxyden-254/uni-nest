@@ -72,6 +72,11 @@ model User {
   avatarUrl     String?
   emailVerified Boolean  @default(false)
   googleId      String?  @unique
+
+  // Tokens for email verification and password reset flows.
+  emailVerifyToken  String?   @unique
+  resetToken        String?   @unique
+  resetTokenExpires DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

@@ -77,7 +77,7 @@ The project is built in 15 incremental phases. See [docs/ROADMAP.md](docs/ROADMA
 
 - [x] Phase 1 — Project initialization
 - [x] Phase 2 — Database design
-- [ ] Phase 3 — Authentication system
+- [x] Phase 3 — Authentication system
 - [ ] Phase 4 — Client portal
 - [ ] Phase 5 — Property search
 - [ ] Phase 6 — Reservation system

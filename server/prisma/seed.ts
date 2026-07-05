@@ -1,6 +1,7 @@
 // Seed script for UNI-NEST.
 // Populates the database with realistic sample data for development.
 // Run with: npm run prisma:seed
+import bcrypt from "bcryptjs";
 import {
   PrismaClient,
   Role,
@@ -14,6 +15,9 @@ import {
 const prisma = new PrismaClient();
 
 async function main() {
+  // Every seeded user logs in with this password.
+  const password = await bcrypt.hash("password123", 10);
+
   // Clear existing data so the seed can be run repeatedly.
   await prisma.notification.deleteMany();
   await prisma.message.deleteMany();
@@ -56,13 +60,11 @@ async function main() {
   });
 
   // --- Users ---
-  // NOTE: passwords are plain placeholders for now.
-  // Real hashing is added in Phase 3 (Authentication).
   const admin = await prisma.user.create({
     data: {
       name: "System Admin",
       email: "admin@uninest.com",
-      password: "placeholder",
+      password,
       role: Role.ADMIN,
       emailVerified: true,
     },
@@ -72,7 +74,7 @@ async function main() {
     data: {
       name: "James Mwangi",
       email: "james.landlord@example.com",
-      password: "placeholder",
+      password,
       phone: "+254711222333",
       role: Role.LANDLORD,
       emailVerified: true,
@@ -83,7 +85,7 @@ async function main() {
     data: {
       name: "Grace Wanjiru",
       email: "grace@primestudentliving.co.ke",
-      password: "placeholder",
+      password,
       role: Role.COMPANY,
       companyId: company.id,
       emailVerified: true,
@@ -94,7 +96,7 @@ async function main() {
     data: {
       name: "Housing Office",
       email: "office@ntu.ac.ke",
-      password: "placeholder",
+      password,
       role: Role.UNIVERSITY,
       universityId: university.id,
       emailVerified: true,
@@ -105,7 +107,7 @@ async function main() {
     data: {
       name: "Alice Njeri",
       email: "alice.student@example.com",
-      password: "placeholder",
+      password,
       phone: "+254722333444",
       role: Role.STUDENT,
       emailVerified: true,
@@ -116,7 +118,7 @@ async function main() {
     data: {
       name: "Brian Otieno",
       email: "brian.student@example.com",
-      password: "placeholder",
+      password,
       role: Role.STUDENT,
     },
   });
