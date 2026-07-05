@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Builds
+client/.next/
+client/out/
+server/dist/
+
+# Environment variables (never commit real secrets)
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+
+# OS files
+.DS_Store

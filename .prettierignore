@@ -1,0 +1,4 @@
+node_modules
+client/.next
+server/dist
+package-lock.json
